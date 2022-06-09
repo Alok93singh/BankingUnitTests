@@ -45,4 +45,13 @@
 		</plugins>
 	</build>
 
+	
+	<distributionManagement>
+    <repository>
+        <id>central</id>
+        <name>a0ccydaoih4gd-artifactory-primary-0-releases</name>
+        <url>https://aloktest.jfrog.io/artifactory/java-developer-libs-release</url>
+    </repository>
+</distributionManagement>
+	
 </project>

@@ -52,6 +52,13 @@
         <name>a0ccydaoih4gd-artifactory-primary-0-releases</name>
         <url>https://aloktest.jfrog.io/artifactory/java-developer-libs-release</url>
     </repository>
+	
+<snapshotRepository>
+        <id>snapshots</id>
+        <name>a0ccydaoih4gd-artifactory-primary-0-snapshots</name>
+        <url>https://aloktest.jfrog.io/artifactory/java-developer-libs-snapshot</url>
+    </snapshotRepository>
+	
 </distributionManagement>
 	
 	

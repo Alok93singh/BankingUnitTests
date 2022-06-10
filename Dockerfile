@@ -2,7 +2,7 @@ FROM node:latest
 
 WORKDIR /usr/src/app
 
-COPY https://aloktest.jfrog.io/artifactory/java-developer-libs-snapshot/vs/BankingApplication/1.2.20-SNAPSHOT/BankingApplication-1.2.20-20220610.065207-1.jar ./
+COPY https://aloktest.jfrog.io/artifactory/java-developer-libs-snapshot/vs/BankingApplication/1.2.${v}-SNAPSHOT/*.jar ./
 
 RUN npm install
 

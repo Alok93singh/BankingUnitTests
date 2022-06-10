@@ -1,0 +1,47 @@
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                git 'https://github.com/Alok93singh/BankingUnitTests.git'
+                sh 'mvn -s /tmp/settings.xml -B -DskipTests clean package -Dv=${BUILD_NUMBER}'
+            }
+        }
+        stage('Test') { 
+            steps {
+                sh 'mvn test -Dv=${BUILD_NUMBER}' 
+            }
+            post {
+                always {
+                    junit 'target/surefire-reports/*.xml' 
+                    publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: '', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: ''])
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sh 'mvn -s /tmp/settings.xml -X deploy -Dv=${BUILD_NUMBER}'
+            }
+        }
+        stage('Build') {
+
+			steps {
+				sh 'docker build -t BankingApplication:${BUILD_NUMBER} .'
+			}
+		}
+
+		stage('Login') {
+
+			steps {
+				sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+			}
+		}
+
+		stage('Push') {
+
+			steps {
+				sh 'docker push BankingApplication:${BUILD_NUMBER}adding '
+			}
+		}
+    }
+}

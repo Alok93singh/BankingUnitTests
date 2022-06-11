@@ -2,7 +2,7 @@ FROM node:latest
 
 WORKDIR /usr/src/app
 
-COPY /tmp/artifact/ ./
+COPY /var/lib/jenkins/workspace/first-pipeline/*.jar ./
 
 RUN npm install
 

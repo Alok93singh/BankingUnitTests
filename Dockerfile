@@ -2,7 +2,7 @@ FROM node:latest
 
 WORKDIR /usr/src/app
 
-ADD *.jar ./
+ADD /tmp/artifact/*.jar ./
 
 RUN npm install
 

@@ -32,7 +32,7 @@ pipeline {
         stage('Build') {
 
 			steps {
-				sh 'docker build -t bankingAaplication:${BUILD_NUMBER} .'
+				sh 'docker build -t bankingapplication:${BUILD_NUMBER} .'
 			}
 		}
 
@@ -46,7 +46,7 @@ pipeline {
 		stage('Push') {
 
 			steps {
-				sh 'docker push bankingAaplication:${BUILD_NUMBER}'
+				sh 'docker push bankingapplication:${BUILD_NUMBER}'
 			}
 	}
     }

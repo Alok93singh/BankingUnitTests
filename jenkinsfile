@@ -1,59 +1,222 @@
+
+
 pipeline {
-    agent any
-    	
-	environment {
-		DOCKERHUB_CREDENTIALS=credentials('DocerkHub_password')
+
+  agent any
+
+  environment {
+      
+		JFROG_CREDENTIALS=credentials('jfrog_id')
+		DOCKERHUB_CREDENTIALS=credentials('DOCKERHUB_CREDENTIALS')
+		sLogintoken = credentials('sonarlogin')
+		
+		//Variables 
+
+        gitRepo = 'https://github.com/Alok93singh/vprofile-repo.git'
+        gitBranch = 'master'
+        jfroguserSetting =  '/tmp/settings.xml'
+
+
+		
+    //Sonar values
+        sServer =  'sonar4.7'
+        sHost = 'https://sonarcloud.io'
+        sProjectkey = 'Alok93singh_vprofile-repo'
+        sProjectname = 'BankingUnitTests'
+        sOrganization =  'alok93singh'
+		
+		
+		jURL =  'https://aloktest.jfrog.io/artifactory/'
+        jServerID =  'artifactory'
+        buildname = 'BankingApplication'
+        
+        
+        //Docker values 
+        dockerImagename = 'bankingapplication'
 	}
+
+
+  stages {
+    stage('Build') {
+      steps {
+        echo ' ##################################### Cloning Git Repo #####################################'
+        //git branch: '${gitBranch}',  url: '${gitRepo}'
+        git  branch: """${gitBranch}""",  url: """${gitRepo} """
+        echo ' ##################################### Cloning Git Repo Completed #####################################'
+        echo ' ##################################### Building Maven Package #####################################'
     
-    
-    stages {
-        stage('Build') {
-            steps {
-                git 'https://github.com/Alok93singh/BankingUnitTests.git'
-                sh 'mvn -s /tmp/settings.xml -B -DskipTests clean package -Dv=${BUILD_NUMBER}'
-            }
-        }
-        stage('Test') { 
-            steps {
-                sh 'mvn test -Dv=${BUILD_NUMBER}' 
-            }
-            post {
-                always {
-                    junit 'target/surefire-reports/*.xml' 
-                    publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: '', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: ''])
-                }
-            }
-        }
-        stage('Deploy') {
-            steps {
-                sh 'mvn -s /tmp/settings.xml -X deploy -Dv=${BUILD_NUMBER}'
-            }
-        }
-        stage('Build') {
+        sh """mvn -s ${jfroguserSetting} -B -DskipTests clean package -Dv=${BUILD_NUMBER}"""
+        echo ' ##################################### Building Maven Package Completed #####################################'
+      }
+    }
 
-			steps {
-				sh 'docker build -t bankingapplication:${BUILD_NUMBER} .'
-			}
-		}
 
-		stage('Login') {
+//   stage('Test') {
+//      steps {
+//       sh 'mvn test -Dv=${BUILD_NUMBER}' 
+//     }
+//         post {
+//           always {
+//                   junit 'target/surefire-reports/*.xml'
+//                   publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: '', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: ''])
+//             }
+//         }
+//   }
+   
+   
+    stage('Checkstyle Analysis'){
+      steps {
+        echo ' ##################################### Code CheckStyle Test #####################################'  
+        sh 'mvn checkstyle:checkstyle'
+        echo ' ##################################### Code CheckStyle Test Completed #####################################'  
+      }
+    }
+   
+   
+    // stage('Sonar Analysis') {
+    //         environment {
+    //             scannerHome = tool 'sonar4.7'
+    //         }
+    //         steps {
+    //           withSonarQubeEnv('sonar') {
+    //               sh '''${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=Alok93singh_vprofile-repo \
+    //               -Dsonar.projectName=vprofile \
+    //               -Dsonar.projectVersion=1.0 \
+    //               -Dsonar.sources=src/ \
+    //               -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \
+    //               -Dsonar.junit.reportsPath=target/surefire-reports/ \
+    //               -Dsonar.jacoco.reportsPath=target/jacoco.exec \
+    //               -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml'''
+                   
+    //         }
+    //     }
+    // }
+   
 
-			steps {
-				'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-			}
-		}
+      stage('Sonar Analysis') {
+        environment {
+              scannerHome = tool "${sServer}"
+        }
+        steps {
+          withSonarQubeEnv('sonar') {
+          echo ' ##################################### Uploading Test Results to Sonar Server #####################################'    
+          sh """mvn sonar:sonar -Dsonar.projectKey=${sProjectkey}  -Dsonar.host.url=${sHost}   -Dsonar.login= -Dsonar.login=${sLogintoken}  -Dsonar.projectName=${sProjectname} -Dsonar.organization=${sOrganization}"""
+          echo ' ##################################### Successfully Uploaded Test Results to Sonar Server #####################################'    
+          }
+        }
+      }
+
+      stage('Deploy/Download Artifact to/from Repository ') {
+        steps {    
+          jfrogconnection();
+          uploadJfrog();
+          rtPublishBuildInfo(
+               serverId: """${jServerID}""",
+               buildName: """${buildname}""",
+               buildNumber: """${BUILD_NUMBER}""",
+               );     
+          downloadarti();
+                // sh 'mvn -s /tmp/settings.xml -X deploy -Dv=${BUILD_NUMBER}'
+        }
+      }
+       
+       
+       
+      stage('DockerBuild') {
+			  steps {  
+          echo ' ##################################### Docker Building Image #####################################'
+			    //sh 'bash /tmp/arti.sh'
+				  sh """docker build -t $DOCKERHUB_CREDENTIALS_USR/${dockerImagename}:${BUILD_NUMBER} ."""
+          echo ' ##################################### Successfully Build Docker Image #####################################'
+			  }
+		  }
+		
+			stage('Login') {
+			  steps {
+          echo ' ##################################### Login to DockerHub  #####################################'
+				  sh """docker login -u $DOCKERHUB_CREDENTIALS_USR -p $DOCKERHUB_CREDENTIALS_PSW"""
+          echo ' ##################################### Loged into DockerHub  #####################################'
+			  }
+		  }
 
 		stage('Push') {
-
-			steps {
-				sh 'docker push bankingapplication:${BUILD_NUMBER}'
+    	steps {
+        echo ' ##################################### Pushing Image to DockerHub  #####################################'
+				sh """docker push $DOCKERHUB_CREDENTIALS_USR/${dockerImagename}:${BUILD_NUMBER}"""
+        echo ' ##################################### Image Pushed to DockerHub  #####################################'
 			}
-	}
-    }
+	  }
+	    
+	  stage('Run Application') {
+			steps {
+        echo ' ##################################### Running Docker Image #####################################'
+			  sh """docker run -it -d $DOCKERHUB_CREDENTIALS_USR/${dockerImagename}:${BUILD_NUMBER}"""
+        echo ' ##################################### Running Docker Image on Machine  #####################################'
+			}
+	  }
+  }
     
-    	post {
-		always {
-			sh 'docker logout'
-		}
-	}
+    post {
+		  always {
+			  sh 'docker logout'
+        echo '##################################### Logout from Doceker #####################################'
+		  }
+	  }
+}
+
+
+
+// This Function will create connaction with  Jfrog Repository
+def jfrogconnection() {  
+    echo ' ##################################### Creating Connection to Repository #####################################'
+    rtServer(
+    id: """${jServerID}""",
+    url: """${jURL}""",
+    username: """${JFROG_CREDENTIALS_USR}""",
+    password: """${JFROG_CREDENTIALS_PSW}""",
+    bypassProxy: true,
+    timeout: 300
+    )     
+    echo ' ##################################### Connection Created to Repository #####################################'
+}
+
+// This Function will upload Artifacts to Jfrog Repository
+def uploadJfrog() { 
+    echo ' ##################################### Uploading Artifact to Repository #####################################'
+    rtUpload(
+        serverId: """${jServerID}""",
+    spec: '''{
+          "files": [
+            {
+              "pattern": "target/*.war",
+              "target": "java-developer-libs-snapshot/${buildname}/${BUILD_NUMBER}/"
+            }
+         ]
+    }''',
+    
+    buildName: """${buildname}""",
+    buildNumber: """${BUILD_NUMBER}""",
+    )   
+    echo ' ##################################### Artifact Uploaded to Repository #####################################'
+
+}
+
+
+// This Function will download Artifacts from Jfrog Repository
+def downloadarti(){
+    echo ' ##################################### Downloaded Artifact from Repository #####################################'
+    rtDownload (
+    serverId: """${jServerID}""",
+    spec: '''{
+          "files": [
+            {
+              "pattern": "java-developer-libs-snapshot/${buildname}/${BUILD_NUMBER}/",
+              "target": "downloads/"
+            }
+          ]
+    }''',
+    buildName: """${buildname}""",
+    buildNumber: """${BUILD_NUMBER}""",
+    )
+    echo ' ##################################### Successfully Downloaded Artifact from Repository #####################################'
 }
